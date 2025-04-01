@@ -1,6 +1,6 @@
 const admin = require('firebase-admin');
 
-// Initialiseer Firebase Admin alleen als het nog niet is gebeurd
+// Initialiseer Firebase Admin
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -14,11 +14,19 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*'); // CORS toestaan
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
+  // Stel CORS-headers in voor alle verzoeken
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Of specificeer 'https://chat.daan.engineer'
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+  // Handel preflight OPTIONS-verzoek af
+  if (req.method === 'OPTIONS') {
+    res.status(200).end(); // Stuur een lege 200 OK response
+    return;
+  }
+
+  // GET: Haal berichten op
   if (req.method === 'GET') {
-    // Haal alle berichten op
     try {
       const snapshot = await db.collection('messages').orderBy('timestamp').get();
       const messages = snapshot.docs.map(doc => ({
@@ -27,10 +35,12 @@ module.exports = async (req, res) => {
       }));
       res.status(200).json(messages);
     } catch (error) {
-      res.status(500).json({ error: 'Fout bij ophalen berichten' });
+      console.error('Firestore fout:', error);
+      res.status(500).json({ error: 'Fout bij ophalen berichten', details: error.message });
     }
-  } else if (req.method === 'POST') {
-    // Verstuur een nieuw bericht
+  }
+  // POST: Verstuur een bericht
+  else if (req.method === 'POST') {
     const { text } = req.body;
     if (!text) {
       return res.status(400).json({ error: 'Geen tekst opgegeven' });
@@ -43,9 +53,12 @@ module.exports = async (req, res) => {
       await db.collection('messages').add(newMessage);
       res.status(200).json({ message: 'Bericht verzonden' });
     } catch (error) {
-      res.status(500).json({ error: 'Fout bij verzenden bericht' });
+      console.error('Firestore fout:', error);
+      res.status(500).json({ error: 'Fout bij verzenden bericht', details: error.message });
     }
-  } else {
+  }
+  // Andere methodes
+  else {
     res.status(405).json({ error: 'Methode niet toegestaan' });
   }
 };
