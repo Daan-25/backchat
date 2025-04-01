@@ -17,10 +17,13 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+  // Handel preflight OPTIONS-verzoek af
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
   }
+
+  const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'Onbekend';
 
   if (req.method === 'GET') {
     try {
@@ -30,6 +33,7 @@ module.exports = async (req, res) => {
         text: doc.data().text,
         username: doc.data().username || 'Anoniem',
         timestamp: doc.data().timestamp ? doc.data().timestamp.toDate().toISOString() : null,
+        ip: doc.data().ip || 'Niet beschikbaar',
       }));
       res.status(200).json(messages);
     } catch (error) {
@@ -37,7 +41,6 @@ module.exports = async (req, res) => {
       res.status(500).json({ error: 'Fout bij ophalen berichten', details: error.message });
     }
   }
-  // POST: Verstuur een bericht
   else if (req.method === 'POST') {
     const { text, username } = req.body;
     if (!text) {
@@ -48,6 +51,7 @@ module.exports = async (req, res) => {
         text,
         username: username || 'Anoniem',
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        ip: ipAddress,
       };
       await db.collection('messages').add(newMessage);
       res.status(200).json({ message: 'Bericht verzonden' });
