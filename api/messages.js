@@ -24,10 +24,12 @@ module.exports = async (req, res) => {
 
   if (req.method === 'GET') {
     try {
-      const snapshot = await db.collection('messages').orderBy('timestamp').get();
+      const snapshot = await db.collection('messages').orderBy('timestamp', 'asc').get();
       const messages = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data(),
+        text: doc.data().text,
+        username: doc.data().username || 'Anoniem',
+        timestamp: doc.data().timestamp ? doc.data().timestamp.toDate().toISOString() : null,
       }));
       res.status(200).json(messages);
     } catch (error) {
@@ -35,14 +37,16 @@ module.exports = async (req, res) => {
       res.status(500).json({ error: 'Fout bij ophalen berichten', details: error.message });
     }
   }
+  // POST: Verstuur een bericht
   else if (req.method === 'POST') {
-    const { text } = req.body;
+    const { text, username } = req.body;
     if (!text) {
       return res.status(400).json({ error: 'Geen tekst opgegeven' });
     }
     try {
       const newMessage = {
         text,
+        username: username || 'Anoniem',
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
       };
       await db.collection('messages').add(newMessage);
