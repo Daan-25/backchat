@@ -15,6 +15,7 @@ const db = admin.firestore();
 const MESSAGE_LIMIT = 5;
 const TIME_WINDOW = 60 * 1000;
 const BAN_DURATION = 5 * 60 * 1000;
+const MAX_MESSAGE_LENGTH = 100;
 
 async function isIpBanned(ip) {
   const banDoc = await db.collection('bans').doc(ip).get();
@@ -101,6 +102,9 @@ module.exports = async (req, res) => {
     const { text, username } = req.body;
     if (!text) {
       return res.status(400).json({ error: 'Geen tekst opgegeven' });
+    }
+    if (text.length > MAX_MESSAGE_LENGTH) {
+        return res.status(400).json({ error: 'Bericht te lang (max ${MAX_MESSAGE_LENGTH} tekens' });
     }
 
     try {
