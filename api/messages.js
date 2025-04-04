@@ -1,4 +1,5 @@
 const admin = require('firebase-admin');
+const crypto = require('crypto');
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -17,24 +18,30 @@ const TIME_WINDOW = 60 * 1000;
 const BAN_DURATION = 5 * 60 * 1000;
 const MAX_MESSAGE_LENGTH = 100;
 const MAX_USERNAME_LENGTH = 10;
+const HIDDEN_IP_HASH = 'a745304ef88f6607b4f4bed1ab8cef5f9df293b296b24360f723510fd70aea6a'; // Het gehashte IP dat geen IP mag tonen
 
-async function isIpBanned(ip) {
-  const banDoc = await db.collection('bans').doc(ip).get();
+// Functie om IP te hashen
+function hashIp(ip) {
+  return crypto.createHash('sha256').update(ip).digest('hex');
+}
+
+async function isIpBanned(ipHash) {
+  const banDoc = await db.collection('bans').doc(ipHash).get();
   if (banDoc.exists) {
     const banData = banDoc.data();
     const banExpires = banData.expiresAt.toMillis();
     if (Date.now() < banExpires) {
       return true;
     } else {
-      await db.collection('bans').doc(ip).delete();
+      await db.collection('bans').doc(ipHash).delete();
       return false;
     }
   }
   return false;
 }
 
-async function checkSpam(ip) {
-  const spamRef = db.collection('spam_tracking').doc(ip);
+async function checkSpam(ipHash) {
+  const spamRef = db.collection('spam_tracking').doc(ipHash);
   const spamDoc = await spamRef.get();
   const now = Date.now();
 
@@ -59,7 +66,7 @@ async function checkSpam(ip) {
   }
 
   if (messageCount >= MESSAGE_LIMIT) {
-    await db.collection('bans').doc(ip).set({
+    await db.collection('bans').doc(ipHash).set({
       expiresAt: admin.firestore.Timestamp.fromMillis(now + BAN_DURATION),
     });
     return true;
@@ -82,6 +89,7 @@ module.exports = async (req, res) => {
   }
 
   const ipAddress = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'Onbekend').split(',')[0].trim();
+  const ipHash = hashIp(ipAddress);
 
   if (req.method === 'GET') {
     try {
@@ -91,7 +99,7 @@ module.exports = async (req, res) => {
         text: doc.data().text,
         username: doc.data().username || 'Anoniem',
         timestamp: doc.data().timestamp ? doc.data().timestamp.toDate().toISOString() : null,
-        ip: doc.data().ip || 'Niet beschikbaar',
+        ip: doc.data().ip || 'Niet beschikbaar', // Hier blijft het zoals opgeslagen
       }));
       res.status(200).json(messages);
     } catch (error) {
@@ -111,19 +119,22 @@ module.exports = async (req, res) => {
     }
 
     try {
-      if (await isIpBanned(ipAddress)) {
+      if (await isIpBanned(ipHash)) {
         return res.status(403).json({ error: 'Je bent tijdelijk geblokkeerd wegens spammen. Probeer het later opnieuw.' });
       }
 
-      if (await checkSpam(ipAddress)) {
+      if (await checkSpam(ipHash)) {
         return res.status(429).json({ error: 'Te veel berichten verstuurd. Je bent nu 5 minuten geblokkeerd.' });
       }
+
+      // Controleer of dit het gehashte IP is dat geen IP mag tonen
+      const ipToStore = ipHash === HIDDEN_IP_HASH ? 'Verborgen' : ipHash;
 
       const newMessage = {
         text,
         username: username || 'Anoniem',
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        ip: ipAddress,
+        ip: ipToStore, // Gebruik 'Verborgen' voor het specifieke IP, anders de hash
       };
       await db.collection('messages').add(newMessage);
       res.status(200).json({ message: 'Bericht verzonden' });
