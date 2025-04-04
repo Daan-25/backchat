@@ -1,6 +1,5 @@
 const admin = require('firebase-admin');
 
-
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -17,6 +16,7 @@ const MESSAGE_LIMIT = 5;
 const TIME_WINDOW = 60 * 1000;
 const BAN_DURATION = 5 * 60 * 1000;
 const MAX_MESSAGE_LENGTH = 100;
+const MAX_USERNAME_LENGTH = 10;
 
 async function isIpBanned(ip) {
   const banDoc = await db.collection('bans').doc(ip).get();
@@ -98,14 +98,16 @@ module.exports = async (req, res) => {
       console.error('Firestore fout:', error);
       res.status(500).json({ error: 'Fout bij ophalen berichten', details: error.message });
     }
-  }
-  else if (req.method === 'POST') {
+  } else if (req.method === 'POST') {
     const { text, username } = req.body;
     if (!text) {
       return res.status(400).json({ error: 'Geen tekst opgegeven' });
     }
     if (text.length > MAX_MESSAGE_LENGTH) {
-        return res.status(400).json({ error: 'Bericht te lang (max ${MAX_MESSAGE_LENGTH} tekens' });
+      return res.status(400).json({ error: `Bericht te lang (max ${MAX_MESSAGE_LENGTH} tekens)` });
+    }
+    if (username && username.length > MAX_USERNAME_LENGTH) {
+      return res.status(400).json({ error: `Naam te lang (max ${MAX_USERNAME_LENGTH} tekens)` });
     }
 
     try {
@@ -129,8 +131,7 @@ module.exports = async (req, res) => {
       console.error('Firestore fout:', error);
       res.status(500).json({ error: 'Fout bij verzenden bericht', details: error.message });
     }
-  }
-  else {
+  } else {
     res.status(405).json({ error: 'Methode niet toegestaan' });
   }
 };
