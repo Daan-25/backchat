@@ -18,7 +18,7 @@ const TIME_WINDOW = 60 * 1000;
 const BAN_DURATION = 5 * 60 * 1000;
 const MAX_MESSAGE_LENGTH = 100;
 const MAX_USERNAME_LENGTH = 10;
-const HIDDEN_IP_HASH = 'a745304ef88f6607b4f4bed1ab8cef5f9df293b296b24360f723510fd70aea6a'; // Het gehashte IP dat geen IP mag tonen
+const HIDDEN_IP_HASH = 'a745304ef88f6607b4f4bed1ab8cef5f9df293b296b24360f723510fd70aea6a'; // Het gehashte IP dat verborgen moet blijven
 
 // Functie om IP te hashen
 function hashIp(ip) {
@@ -99,7 +99,7 @@ module.exports = async (req, res) => {
         text: doc.data().text,
         username: doc.data().username || 'Anoniem',
         timestamp: doc.data().timestamp ? doc.data().timestamp.toDate().toISOString() : null,
-        ip: doc.data().ip || 'Niet beschikbaar', // Hier blijft het zoals opgeslagen
+        ip: doc.data().ip || 'Niet beschikbaar', // Toont het opgeslagen IP (normaal of 'Verborgen')
       }));
       res.status(200).json(messages);
     } catch (error) {
@@ -127,14 +127,14 @@ module.exports = async (req, res) => {
         return res.status(429).json({ error: 'Te veel berichten verstuurd. Je bent nu 5 minuten geblokkeerd.' });
       }
 
-      // Controleer of dit het gehashte IP is dat geen IP mag tonen
-      const ipToStore = ipHash === HIDDEN_IP_HASH ? 'Verborgen' : ipHash;
+      // Bepaal wat er in het ip-veld wordt opgeslagen
+      const ipToStore = ipHash === HIDDEN_IP_HASH ? 'Verborgen' : ipAddress;
 
       const newMessage = {
         text,
         username: username || 'Anoniem',
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        ip: ipToStore, // Gebruik 'Verborgen' voor het specifieke IP, anders de hash
+        ip: ipToStore, // Normaal IP-adres, behalve voor het verborgen IP
       };
       await db.collection('messages').add(newMessage);
       res.status(200).json({ message: 'Bericht verzonden' });
