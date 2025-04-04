@@ -18,6 +18,7 @@ const TIME_WINDOW = 60 * 1000;
 const BAN_DURATION = 5 * 60 * 1000;
 const MAX_MESSAGE_LENGTH = 100;
 const MAX_USERNAME_LENGTH = 10;
+const MAX_AVATAR_LENGTH = 100; // Nieuwe limiet voor avatars
 const HIDDEN_IP_HASH = 'a745304ef88f6607b4f4bed1ab8cef5f9df293b296b24360f723510fd70aea6a';
 
 // Functie om IP te hashen
@@ -98,7 +99,7 @@ module.exports = async (req, res) => {
         id: doc.id,
         text: doc.data().text,
         username: doc.data().username || 'Anoniem',
-        avatar: doc.data().avatar || '😀', // Standaard avatar als deze ontbreekt
+        avatar: doc.data().avatar || '😀',
         timestamp: doc.data().timestamp ? doc.data().timestamp.toDate().toISOString() : null,
         ip: doc.data().ip || 'Niet beschikbaar',
       }));
@@ -118,8 +119,8 @@ module.exports = async (req, res) => {
     if (username && username.length > MAX_USERNAME_LENGTH) {
       return res.status(400).json({ error: `Naam te lang (max ${MAX_USERNAME_LENGTH} tekens)` });
     }
-    if (avatar && avatar.length > 10) { // Limiet voor avatar (bijv. emoji's zijn kort)
-      return res.status(400).json({ error: 'Avatar te lang' });
+    if (avatar && avatar.length > MAX_AVATAR_LENGTH) {
+      return res.status(400).json({ error: `Avatar te lang (max ${MAX_AVATAR_LENGTH} tekens)` });
     }
 
     try {
@@ -136,7 +137,7 @@ module.exports = async (req, res) => {
       const newMessage = {
         text,
         username: username || 'Anoniem',
-        avatar: avatar || '😀', // Standaard avatar als geen wordt meegegeven
+        avatar: avatar || '😀',
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
         ip: ipToStore,
       };
