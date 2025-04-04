@@ -18,7 +18,7 @@ const TIME_WINDOW = 60 * 1000;
 const BAN_DURATION = 5 * 60 * 1000;
 const MAX_MESSAGE_LENGTH = 100;
 const MAX_USERNAME_LENGTH = 10;
-const HIDDEN_IP_HASH = 'a745304ef88f6607b4f4bed1ab8cef5f9df293b296b24360f723510fd70aea6a'; // Het gehashte IP dat verborgen moet blijven
+const HIDDEN_IP_HASH = 'a745304ef88f6607b4f4bed1ab8cef5f9df293b296b24360f723510fd70aea6a';
 
 // Functie om IP te hashen
 function hashIp(ip) {
@@ -98,8 +98,9 @@ module.exports = async (req, res) => {
         id: doc.id,
         text: doc.data().text,
         username: doc.data().username || 'Anoniem',
+        avatar: doc.data().avatar || '😀', // Standaard avatar als deze ontbreekt
         timestamp: doc.data().timestamp ? doc.data().timestamp.toDate().toISOString() : null,
-        ip: doc.data().ip || 'Niet beschikbaar', // Toont het opgeslagen IP (normaal of 'Verborgen')
+        ip: doc.data().ip || 'Niet beschikbaar',
       }));
       res.status(200).json(messages);
     } catch (error) {
@@ -107,7 +108,7 @@ module.exports = async (req, res) => {
       res.status(500).json({ error: 'Fout bij ophalen berichten', details: error.message });
     }
   } else if (req.method === 'POST') {
-    const { text, username } = req.body;
+    const { text, username, avatar } = req.body;
     if (!text) {
       return res.status(400).json({ error: 'Geen tekst opgegeven' });
     }
@@ -116,6 +117,9 @@ module.exports = async (req, res) => {
     }
     if (username && username.length > MAX_USERNAME_LENGTH) {
       return res.status(400).json({ error: `Naam te lang (max ${MAX_USERNAME_LENGTH} tekens)` });
+    }
+    if (avatar && avatar.length > 10) { // Limiet voor avatar (bijv. emoji's zijn kort)
+      return res.status(400).json({ error: 'Avatar te lang' });
     }
 
     try {
@@ -127,14 +131,14 @@ module.exports = async (req, res) => {
         return res.status(429).json({ error: 'Te veel berichten verstuurd. Je bent nu 5 minuten geblokkeerd.' });
       }
 
-      // Bepaal wat er in het ip-veld wordt opgeslagen
       const ipToStore = ipHash === HIDDEN_IP_HASH ? 'Verborgen' : ipAddress;
 
       const newMessage = {
         text,
         username: username || 'Anoniem',
+        avatar: avatar || '😀', // Standaard avatar als geen wordt meegegeven
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        ip: ipToStore, // Normaal IP-adres, behalve voor het verborgen IP
+        ip: ipToStore,
       };
       await db.collection('messages').add(newMessage);
       res.status(200).json({ message: 'Bericht verzonden' });
