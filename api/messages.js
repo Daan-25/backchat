@@ -125,8 +125,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-      // Spam- en ban-tracking tijdelijk uitgeschakeld door deze checks te negeren
-      /*
+      Spam- en ban-tracking tijdelijk uitgeschakeld door deze checks te negeren
       if (await isIpBanned(ipHash)) {
         return res.status(403).json({ error: 'Je bent tijdelijk geblokkeerd wegens spammen. Probeer het later opnieuw.' });
       }
@@ -134,7 +133,6 @@ module.exports = async (req, res) => {
       if (await checkSpam(ipHash)) {
         return res.status(429).json({ error: 'Te veel berichten verstuurd. Je bent nu 5 minuten geblokkeerd.' });
       }
-      */
 
       const ipToStore = ipHash === HIDDEN_IP_HASH ? 'Verborgen' : ipAddress;
 
