@@ -18,7 +18,7 @@ const TIME_WINDOW = 60 * 1000;
 const BAN_DURATION = 5 * 60 * 1000;
 const MAX_MESSAGE_LENGTH = 100;
 const MAX_USERNAME_LENGTH = 10;
-const MAX_AVATAR_LENGTH = 100;
+const MAX_AVATAR_LENGTH = 100; // Nieuwe limiet voor avatars
 const HIDDEN_IP_HASH = 'a745304ef88f6607b4f4bed1ab8cef5f9df293b296b24360f723510fd70aea6a';
 
 // Functie om IP te hashen
@@ -26,7 +26,6 @@ function hashIp(ip) {
   return crypto.createHash('sha256').update(ip).digest('hex');
 }
 
-// Deze functies worden nu genegeerd, maar laten we ze intact voor als je ze later weer inschakelt
 async function isIpBanned(ipHash) {
   const banDoc = await db.collection('bans').doc(ipHash).get();
   if (banDoc.exists) {
@@ -125,7 +124,6 @@ module.exports = async (req, res) => {
     }
 
     try {
-      Spam- en ban-tracking tijdelijk uitgeschakeld door deze checks te negeren
       if (await isIpBanned(ipHash)) {
         return res.status(403).json({ error: 'Je bent tijdelijk geblokkeerd wegens spammen. Probeer het later opnieuw.' });
       }
