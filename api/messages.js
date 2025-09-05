@@ -26,6 +26,17 @@ function hashIp(ip) {
   return crypto.createHash('sha256').update(ip).digest('hex');
 }
 
+// Functie om HTML te escapen (XSS preventie)
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 // Deze functies worden nu genegeerd, maar laten we ze intact voor als je ze later weer inschakelt
 async function isIpBanned(ipHash) {
   const banDoc = await db.collection('bans').doc(ipHash).get();
@@ -110,7 +121,8 @@ module.exports = async (req, res) => {
       res.status(500).json({ error: 'Fout bij ophalen berichten', details: error.message });
     }
   } else if (req.method === 'POST') {
-    const { text, username, avatar } = req.body;
+    let { text, username, avatar } = req.body;
+
     if (!text) {
       return res.status(400).json({ error: 'Geen tekst opgegeven' });
     }
@@ -125,7 +137,12 @@ module.exports = async (req, res) => {
     }
 
     try {
-      // Spam- en ban-tracking tijdelijk uitgeschakeld door deze checks te negeren
+      // Alle invoer escapen (tegen XSS)
+      const safeText = escapeHtml(text);
+      const safeUsername = username ? escapeHtml(username) : 'Anoniem';
+      const safeAvatar = avatar ? escapeHtml(avatar) : '😀';
+
+      // Spam- en ban-tracking tijdelijk uitgeschakeld
       /*
       if (await isIpBanned(ipHash)) {
         return res.status(403).json({ error: 'Je bent tijdelijk geblokkeerd wegens spammen. Probeer het later opnieuw.' });
@@ -139,9 +156,9 @@ module.exports = async (req, res) => {
       const ipToStore = ipHash === HIDDEN_IP_HASH ? 'Verborgen' : ipAddress;
 
       const newMessage = {
-        text,
-        username: username || 'Anoniem',
-        avatar: avatar || '😀',
+        text: safeText,
+        username: safeUsername,
+        avatar: safeAvatar,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
         ip: ipToStore,
       };
